@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import * as path from 'path';
 
+import { AuthControllerModule } from './auth/auth.controller.module';
 import { IdsControllerModule } from './ids/ids.controller.module';
 
 @Module({
@@ -10,6 +11,7 @@ import { IdsControllerModule } from './ids/ids.controller.module';
       rootPath: path.join(process.cwd(), 'client'),
     }),
     IdsControllerModule,
+    AuthControllerModule,
   ],
 })
 export class AppModule {}
