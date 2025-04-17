@@ -7,6 +7,7 @@ import {
 } from '@libs/service/auth/types';
 import { HttpService } from '@nestjs/axios';
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AxiosResponse } from 'axios';
 import { firstValueFrom } from 'rxjs';
 
@@ -14,7 +15,10 @@ import { firstValueFrom } from 'rxjs';
 export class AuthService {
   private readonly state = 'xyz'; // CSRF 방지 또는 클라이언트 상태 식별용
 
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
+  ) {}
 
   /** OAuth 로그인 URL 리다이렉트용 URL 생성 */
   public redirectToOAuth(provider: OAuthProvider): string {
@@ -43,9 +47,9 @@ export class AuthService {
 
     const tokenPayload = {
       code,
-      client_id: process.env.GOOGLE_CLIENT_ID,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET,
-      redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+      client_id: this.configService.get<string>('GOOGLE_CLIENT_ID'),
+      client_secret: this.configService.get<string>('GOOGLE_CLIENT_SECRET'),
+      redirect_uri: this.configService.get<string>('GOOGLE_REDIRECT_URI'),
       grant_type: 'authorization_code',
     };
 
@@ -72,8 +76,8 @@ export class AuthService {
 
     const params = new URLSearchParams({
       grant_type: 'authorization_code',
-      client_id: process.env.NAVER_CLIENT_ID!,
-      client_secret: process.env.NAVER_CLIENT_SECRET!,
+      client_id: this.configService.get<string>('NAVER_CLIENT_ID') as string,
+      client_secret: this.configService.get<string>('NAVER_CLIENT_SECRET') as string,
       code,
       state,
     });
@@ -103,16 +107,17 @@ export class AuthService {
   private getOAuthRedirectUrl(provider: 'google' | 'naver'): string {
     switch (provider) {
       case 'google': {
-        const clientId = process.env.GOOGLE_CLIENT_ID;
-        const redirectUri = process.env.GOOGLE_REDIRECT_URI;
+        const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
+        const redirectUri = this.configService.get<string>('GOOGLE_REDIRECT_URI');
         const scope = 'email profile';
 
         return `https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${encodeURIComponent(scope)}&state=${this.state}`;
       }
 
       case 'naver': {
-        const clientId = process.env.NAVER_CLIENT_ID;
-        const redirectUri = process.env.NAVER_REDIRECT_URI;
+        const clientId = this.configService.get<string>('NAVER_CLIENT_ID');
+        const redirectUri = this.configService.get<string>('NAVER_REDIRECT_URI');
+        //  const clientSecret = this.configService.get<string>('NAVER_CLIENT_SECRET');
 
         return `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${this.state}`;
       }
