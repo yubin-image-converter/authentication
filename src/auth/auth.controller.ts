@@ -1,20 +1,36 @@
 import { AuthService } from '@libs/service/auth/auth.service';
+import { OAUTH_PROVIDERS, OAuthProvider } from '@libs/service/auth/types';
 import { Controller, Get, Query } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(private readonly authService: AuthService) {}
 
   @ApiOperation({ summary: 'OAuth 로그인 진입점' })
+  @ApiQuery({
+    name: 'provider',
+    enum: Object.values(OAUTH_PROVIDERS),
+  })
   @Get('signin')
-  async oauthLogin(@Query('provider') provider: string) {
+  oauthLogin(@Query('provider') provider: OAuthProvider) {
     return this.authService.redirectToOAuth(provider);
   }
 
-  @Get('callback/google')
-async googleCallback(@Query('code') code: string) {
-  return this.authService.handleGoogleCallback(code);
-}
+  @ApiOperation({ summary: 'OAuth 콜백' })
+  @ApiQuery({
+    name: 'provider',
+    enum: Object.values(OAUTH_PROVIDERS),
+  })
+  @ApiQuery({ name: 'code', required: true })
+  @ApiQuery({ name: 'state', required: false })
+  @Get('callback')
+  async oauthCallback(
+    @Query('provider') provider: OAuthProvider,
+    @Query('code') code: string,
+    @Query('state') state?: string,
+  ) {
+    return this.authService.handleOAuthCallback(provider, code, state);
+  }
 }

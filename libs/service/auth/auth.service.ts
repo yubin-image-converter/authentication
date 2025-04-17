@@ -1,29 +1,44 @@
+import {
+  GoogleTokenResponse,
+  GoogleUserInfo,
+  NaverTokenResponse,
+  NaverUserInfo,
+  OAuthProvider,
+} from '@libs/service/auth/types';
 import { HttpService } from '@nestjs/axios';
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { AxiosResponse } from 'axios';
 import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class AuthService {
-    constructor(private readonly httpService: HttpService) {}
-    
-  redirectToOAuth(provider: string): string {
+  private readonly state = 'xyz'; // CSRF 방지 또는 클라이언트 상태 식별용
+
+  constructor(private readonly httpService: HttpService) {}
+
+  /** OAuth 로그인 URL 리다이렉트용 URL 생성 */
+  public redirectToOAuth(provider: OAuthProvider): string {
+    return this.getOAuthRedirectUrl(provider);
+  }
+
+  /** OAuth 콜백 처리 */
+  public async handleOAuthCallback(
+    provider: OAuthProvider,
+    code: string,
+    state?: string,
+  ): Promise<GoogleUserInfo | NaverUserInfo> {
     switch (provider) {
       case 'google':
-        const googleClientId = process.env.GOOGLE_CLIENT_ID;
-        const redirectUri = process.env.GOOGLE_REDIRECT_URI;
-        const scope = 'email profile';
-        const state = 'xyz'; // CSRF 방지용 또는 client 상태 식별용
-
-        const url = `https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=${googleClientId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}`;
-        return url;
-
+        return this.handleGoogleCallback(code);
+      case 'naver':
+        return this.handleNaverCallback(code, state ?? this.state);
       default:
         throw new BadRequestException('지원하지 않는 OAuth 제공자입니다.');
     }
   }
 
-
-  async handleGoogleCallback(code: string) {
+  /** Google OAuth 콜백 처리 */
+  private async handleGoogleCallback(code: string): Promise<GoogleUserInfo> {
     const tokenUrl = 'https://oauth2.googleapis.com/token';
 
     const tokenPayload = {
@@ -34,7 +49,7 @@ export class AuthService {
       grant_type: 'authorization_code',
     };
 
-    const { data: tokenResponse } = await firstValueFrom(
+    const { data: tokenResponse } = await firstValueFrom<AxiosResponse<GoogleTokenResponse>>(
       this.httpService.post(tokenUrl, tokenPayload, {
         headers: { 'Content-Type': 'application/json' },
       }),
@@ -42,16 +57,68 @@ export class AuthService {
 
     const accessToken = tokenResponse.access_token;
 
-    // 사용자 정보 요청
-    const { data: userInfo } = await firstValueFrom(
+    const { data: userInfo } = await firstValueFrom<AxiosResponse<GoogleUserInfo>>(
       this.httpService.get('https://www.googleapis.com/oauth2/v2/userinfo', {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { Authorization: `Bearer ${accessToken}` },
       }),
     );
 
-    // 이후 처리 (DB 저장, JWT 발급 등)
     return userInfo;
+  }
+
+  /** Naver OAuth 콜백 처리 */
+  private async handleNaverCallback(code: string, state: string): Promise<NaverUserInfo> {
+    const tokenUrl = 'https://nid.naver.com/oauth2.0/token';
+
+    const params = new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: process.env.NAVER_CLIENT_ID!,
+      client_secret: process.env.NAVER_CLIENT_SECRET!,
+      code,
+      state,
+    });
+
+    const { data: tokenResponse } = await firstValueFrom<AxiosResponse<NaverTokenResponse>>(
+      this.httpService.post(tokenUrl, params.toString(), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      }),
+    );
+
+    const accessToken = tokenResponse.access_token;
+
+    const response = await firstValueFrom<
+      AxiosResponse<{
+        response: NaverUserInfo;
+      }>
+    >(
+      this.httpService.get('https://openapi.naver.com/v1/nid/me', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }),
+    );
+
+    return response.data.response;
+  }
+
+  /** OAuth URL 생성기 */
+  private getOAuthRedirectUrl(provider: 'google' | 'naver'): string {
+    switch (provider) {
+      case 'google': {
+        const clientId = process.env.GOOGLE_CLIENT_ID;
+        const redirectUri = process.env.GOOGLE_REDIRECT_URI;
+        const scope = 'email profile';
+
+        return `https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${encodeURIComponent(scope)}&state=${this.state}`;
+      }
+
+      case 'naver': {
+        const clientId = process.env.NAVER_CLIENT_ID;
+        const redirectUri = process.env.NAVER_REDIRECT_URI;
+
+        return `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${this.state}`;
+      }
+
+      default:
+        throw new BadRequestException('지원하지 않는 OAuth 제공자입니다.');
+    }
   }
 }
