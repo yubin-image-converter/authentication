@@ -1,129 +1,129 @@
-import {
-  GoogleTokenResponse,
-  GoogleUserInfo,
-  NaverTokenResponse,
-  NaverUserInfo,
-  OAuthProvider,
-} from '@libs/service/auth/types';
 import { HttpService } from '@nestjs/axios';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AxiosResponse } from 'axios';
+import * as axios from 'axios';
 import { firstValueFrom } from 'rxjs';
+
+import { OAuthProvider } from './const/oauth-provider.const';
+import { GoogleTokenResponse } from './interface/google-token.interface';
+import { GoogleUserInfo } from './interface/google-userinfo.interface';
+import { UserResponse } from './interface/user-response.interface';
 
 @Injectable()
 export class AuthService {
-  private readonly state = 'xyz'; // CSRF 방지 또는 클라이언트 상태 식별용
+  private readonly state = 'xyz'; // CSRF 방지를 위한 토큰
+  private readonly logger = new Logger(AuthService.name);
 
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {}
 
-  /** OAuth 로그인 URL 리다이렉트용 URL 생성 */
-  public redirectToOAuth(provider: OAuthProvider): string {
-    return this.getOAuthRedirectUrl(provider);
+  /**
+   * 주어진 provider에 대해 OAuth 인증 URL을 생성합니다.
+   * @param provider - OAuth 제공자 이름 (예: 'google').
+   * @param state - CSRF 방지를 위한 state 값.
+   * @returns OAuth 동의 화면으로 리다이렉트할 URL 문자열.
+   */
+  public getOAuthRedirectUrl(provider: OAuthProvider, state: string): string {
+    if (provider !== 'google') {
+      throw new BadRequestException('지원하지 않는 제공자입니다.');
+    }
+
+    const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID')!;
+    const redirectUri = this.configService.get<string>('GOOGLE_REDIRECT_URI')!;
+    const scope = 'email profile';
+
+    return [
+      'https://accounts.google.com/o/oauth2/v2/auth?',
+      `response_type=code`,
+      `&client_id=${clientId}`,
+      `&redirect_uri=${encodeURIComponent(redirectUri)}`,
+      `&scope=${encodeURIComponent(scope)}`,
+      `&state=${encodeURIComponent(state)}`,
+    ].join('');
   }
 
-  /** OAuth 콜백 처리 */
+  /**
+   * OAuth 콜백을 처리합니다: state 검증, code를 토큰으로 교환, 사용자 정보 조회.
+   * @param provider - OAuth 제공자 이름.
+   * @param code - 제공자로부터 전달받은 authorization code.
+   * @param state - 검증할 CSRF state 값.
+   * @returns 사용자 정보가 담긴 UserResponse 객체.
+   */
   public async handleOAuthCallback(
-    provider: OAuthProvider,
+    provider: string,
     code: string,
-    state?: string,
-  ): Promise<GoogleUserInfo | NaverUserInfo> {
-    switch (provider) {
-      case 'google':
-        return this.handleGoogleCallback(code);
-      case 'naver':
-        return this.handleNaverCallback(code, state ?? this.state);
-      default:
-        throw new BadRequestException('지원하지 않는 OAuth 제공자입니다.');
+    _state?: string,
+  ): Promise<UserResponse> {
+    if (provider !== 'google') {
+      throw new BadRequestException('지원하지 않는 제공자입니다.');
+    }
+
+    // 2) authorization code를 토큰으로 교환하여 사용자 정보 획득
+    const userInfo = await this.handleGoogleCallback(code);
+
+    // 3) Spring Boot API로 사용자 정보 전송 (회원가입 또는 로그인)
+    try {
+      const { data } = await firstValueFrom(
+        this.httpService.post<UserResponse>('http://192.168.0.106:8080/api/auth/oauth/callback', {
+          email: userInfo.email,
+          name: userInfo.name,
+          provider,
+          providerId: userInfo.id,
+        }),
+      );
+      return data;
+    } catch (err) {
+      this.logger.error('Spring 연동 실패', (err as axios.AxiosError).toJSON());
+      throw new InternalServerErrorException('Spring 연동 중 오류가 발생했습니다.');
     }
   }
 
-  /** Google OAuth 콜백 처리 */
+  /**
+   * authorization code를 access token으로 교환하고, Google 사용자 정보를 조회합니다.
+   * @param code - Google에서 받은 authorization code.
+   * @returns 사용자의 프로필 정보가 담긴 GoogleUserInfo 객체.
+   */
   private async handleGoogleCallback(code: string): Promise<GoogleUserInfo> {
     const tokenUrl = 'https://oauth2.googleapis.com/token';
-
-    const tokenPayload = {
-      code,
-      client_id: this.configService.get<string>('GOOGLE_CLIENT_ID'),
-      client_secret: this.configService.get<string>('GOOGLE_CLIENT_SECRET'),
-      redirect_uri: this.configService.get<string>('GOOGLE_REDIRECT_URI'),
-      grant_type: 'authorization_code',
-    };
-
-    const { data: tokenResponse } = await firstValueFrom<AxiosResponse<GoogleTokenResponse>>(
-      this.httpService.post(tokenUrl, tokenPayload, {
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
-
-    const accessToken = tokenResponse.access_token;
-
-    const { data: userInfo } = await firstValueFrom<AxiosResponse<GoogleUserInfo>>(
-      this.httpService.get('https://www.googleapis.com/oauth2/v2/userinfo', {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      }),
-    );
-
-    return userInfo;
-  }
-
-  /** Naver OAuth 콜백 처리 */
-  private async handleNaverCallback(code: string, state: string): Promise<NaverUserInfo> {
-    const tokenUrl = 'https://nid.naver.com/oauth2.0/token';
-
     const params = new URLSearchParams({
-      grant_type: 'authorization_code',
-      client_id: this.configService.get<string>('NAVER_CLIENT_ID') as string,
-      client_secret: this.configService.get<string>('NAVER_CLIENT_SECRET') as string,
       code,
-      state,
+      client_id: this.configService.get<string>('GOOGLE_CLIENT_ID')!,
+      client_secret: this.configService.get<string>('GOOGLE_CLIENT_SECRET')!,
+      redirect_uri: this.configService.get<string>('GOOGLE_REDIRECT_URI')!,
+      grant_type: 'authorization_code',
     });
 
-    const { data: tokenResponse } = await firstValueFrom<AxiosResponse<NaverTokenResponse>>(
-      this.httpService.post(tokenUrl, params.toString(), {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      }),
-    );
+    try {
+      const { data: tokenResp } = await firstValueFrom(
+        this.httpService.post<GoogleTokenResponse>(tokenUrl, params, {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        }),
+      );
 
-    const accessToken = tokenResponse.access_token;
-
-    const response = await firstValueFrom<
-      AxiosResponse<{
-        response: NaverUserInfo;
-      }>
-    >(
-      this.httpService.get('https://openapi.naver.com/v1/nid/me', {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      }),
-    );
-
-    return response.data.response;
-  }
-
-  /** OAuth URL 생성기 */
-  private getOAuthRedirectUrl(provider: 'google' | 'naver'): string {
-    switch (provider) {
-      case 'google': {
-        const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
-        const redirectUri = this.configService.get<string>('GOOGLE_REDIRECT_URI');
-        const scope = 'email profile';
-
-        return `https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${encodeURIComponent(scope)}&state=${this.state}`;
+      const accessToken = tokenResp.access_token;
+      const { data: userInfo } = await firstValueFrom(
+        this.httpService.get<GoogleUserInfo>('https://www.googleapis.com/oauth2/v2/userinfo', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }),
+      );
+      return userInfo;
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        this.logger.error(
+          `Google 토큰 교환 실패 (status=${err.response?.status})`,
+          JSON.stringify(err.response?.data, null, 2),
+        );
+      } else {
+        this.logger.error('Google OAuth 처리 중 예외 발생', err);
       }
-
-      case 'naver': {
-        const clientId = this.configService.get<string>('NAVER_CLIENT_ID');
-        const redirectUri = this.configService.get<string>('NAVER_REDIRECT_URI');
-        //  const clientSecret = this.configService.get<string>('NAVER_CLIENT_SECRET');
-
-        return `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${this.state}`;
-      }
-
-      default:
-        throw new BadRequestException('지원하지 않는 OAuth 제공자입니다.');
+      throw new InternalServerErrorException('Google OAuth 콜백 처리 중 오류가 발생했습니다.');
     }
   }
 }
