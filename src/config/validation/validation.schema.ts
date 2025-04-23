@@ -6,6 +6,9 @@ import * as Joi from 'joi';
 export const validationSchema = Joi.object({
   PORT: Joi.number().default(3000),
 
+  API_SERVER_URL: Joi.string().required(),
+  FE_SERVER_URL: Joi.string().required(),
+
   REDIS_HOST: Joi.string().required(),
   REDIS_PORT: Joi.number().required(),
 

@@ -1,6 +1,7 @@
 import { AuthService } from '@libs/service/auth/auth.service';
 import { OAuthProvider } from '@libs/service/auth/const/oauth-provider.const';
 import { BadRequestException, Controller, Get, Query, Req, Res } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ApiTags } from '@nestjs/swagger';
 import * as crypto from 'crypto';
 import type { Request, Response } from 'express';
@@ -10,7 +11,10 @@ import { OAuthCallbackDto } from './dto/oauth.callback.dto';
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {}
 
   /** 1) 로그인 진입점: 서버에서 구글로 리다이렉트 */
   @Get('signin') oauthSignIn(@Query('provider') provider: OAuthProvider, @Res() res: Response) {
@@ -27,9 +31,9 @@ export class AuthController {
     const url = this.authService.getOAuthRedirectUrl(provider, state);
 
     console.log(`🟡 OAuth 로그인 시작`);
-    console.log(`  ↪️ provider: ${provider}`);
-    console.log(`  ↪️ state (set to cookie): ${state}`);
-    console.log(`  ↪️ redirecting to: ${url}`);
+    // console.log(`  ↪️ provider: ${provider}`);
+    // console.log(`  ↪️ state (set to cookie): ${state}`);
+    // console.log(`  ↪️ redirecting to: ${url}`);
 
     return res.redirect(url);
   }
@@ -41,9 +45,6 @@ export class AuthController {
     const cookieState = (req.cookies as Record<string, string>)['oauth_state'];
 
     console.log(`🔐 OAuth 콜백 도착`);
-    console.log(`  ↪️ code: ${code}`);
-    console.log(`  ↪️ state (query): ${queryState}`);
-    console.log(`  ↪️ state (cookie): ${cookieState}`);
 
     if (!queryState || queryState !== cookieState) {
       console.error(`❌ state mismatch! 요청 거부됨`);
@@ -63,17 +64,21 @@ export class AuthController {
     }
 
     // 🟢 Spring Boot 연동
-    const user = await this.authService.handleOAuthCallback(provider, code, queryState);
+    const data = await this.authService.handleOAuthCallback(provider, code, queryState);
 
     // ✅ HttpOnly accessToken 쿠키로 설정
-    res.cookie('access_token', user.accessToken, {
+    res.cookie('access_token', data.accessToken, {
       httpOnly: true,
-      sameSite: 'lax',
-      secure: false, // 프로덕션이면 true + HTTPS
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7일
+      sameSite: 'lax', // ✅ 이 설정으로도 리디렉션 시 쿠키 포함됨
+      secure: false, // ✅ 로컬 개발환경일 경우
+      path: '/',
+      domain: 'fe.yubin.localhost',
+      maxAge: 1000 * 60 * 60 * 24 * 7,
     });
 
+    const feUrl = this.configService.get<string>('FE_SERVER_URL');
+    console.log(feUrl);
     // ✅ 클라이언트로 리디렉트만 (token은 쿼리에 안 담음)
-    return res.redirect(`http://localhost:5173/oauth/callback`);
+    return res.redirect(`${feUrl}/oauth/callback`);
   }
 }

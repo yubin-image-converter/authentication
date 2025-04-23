@@ -71,12 +71,15 @@ export class AuthService {
     // 3) Spring Boot API로 사용자 정보 전송 (회원가입 또는 로그인)
     try {
       const { data } = await firstValueFrom(
-        this.httpService.post<UserResponse>('http://192.168.0.106:8080/api/auth/oauth/callback', {
-          email: userInfo.email,
-          name: userInfo.name,
-          provider,
-          providerId: userInfo.id,
-        }),
+        this.httpService.post<UserResponse>(
+          this.configService.get<string>('API_SERVER_URL') + '/api/auth/oauth/callback',
+          {
+            email: userInfo.email,
+            name: userInfo.name,
+            provider,
+            providerId: userInfo.id,
+          },
+        ),
       );
       return data;
     } catch (err) {
