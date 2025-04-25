@@ -9,8 +9,8 @@ export const validationSchema = Joi.object({
   API_SERVER_URL: Joi.string().required(),
   FE_SERVER_URL: Joi.string().required(),
 
-  REDIS_HOST: Joi.string().required(),
-  REDIS_PORT: Joi.number().required(),
+  // REDIS_HOST: Joi.string().required(),
+  // REDIS_PORT: Joi.number().required(),
 
   SECURITY_ENABLE: Joi.boolean().default(false),
   COOKIE_SECRET: Joi.string().required(),
