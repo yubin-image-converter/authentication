@@ -33,3 +33,5 @@ jobs:
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/image-converter-authentication:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/image-converter-authentication:${{ github.run_number }}
+
