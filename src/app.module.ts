@@ -40,6 +40,7 @@ import { validationSchema } from './config/validation/validation.schema';
      * helmet, hpp, cookieParser
      */
     SecurityModule,
+
     AuthControllerModule,
   ],
 })
