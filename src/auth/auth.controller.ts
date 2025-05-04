@@ -66,19 +66,16 @@ export class AuthController {
     // 🟢 Spring Boot 연동
     const data = await this.authService.handleOAuthCallback(provider, code, queryState);
 
-    // ✅ HttpOnly accessToken 쿠키로 설정
+    const feUrl = this.configService.get<string>('FE_SERVER_URL')?.replace(/\/$/, '');
+
     res.cookie('access_token', data.accessToken, {
       httpOnly: true,
-      sameSite: 'lax', // ✅ 이 설정으로도 리디렉션 시 쿠키 포함됨
-      secure: false, // ✅ 로컬 개발환경일 경우
+      sameSite: 'lax',
+      secure: true,
       path: '/',
-      domain: 'fe.yubin.localhost',
       maxAge: 1000 * 60 * 60 * 24 * 7,
     });
 
-    const feUrl = this.configService.get<string>('FE_SERVER_URL');
-    console.log(feUrl);
-    // ✅ 클라이언트로 리디렉트만 (token은 쿼리에 안 담음)
     return res.redirect(`${feUrl}/oauth/callback`);
   }
 }
