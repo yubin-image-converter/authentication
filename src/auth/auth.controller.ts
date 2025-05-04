@@ -41,6 +41,7 @@ export class AuthController {
   }
 
   /** 2) OAuth 콜백 처리 */
+  /** 2) OAuth 콜백 처리 */
   @Get('callback')
   async oauthCallback(@Query() query: OAuthCallbackDto, @Req() req: Request, @Res() res: Response) {
     try {
@@ -71,22 +72,15 @@ export class AuthController {
 
       const data = await this.authService.handleOAuthCallback(provider, code, queryState);
 
-      const feUrl = this.configService.get<string>('FE_SERVER_URL')?.replace(/\/$/, '');
-
-      res.cookie('access_token', data.accessToken, {
-        httpOnly: true,
-        sameSite: 'none',
-        secure: true,
-        path: '/',
-        maxAge: 1000 * 60 * 60 * 24 * 7,
+      console.log(`✅ accessToken 발급 완료`);
+      return res.status(200).json({
+        accessToken: data.accessToken,
       });
-
-      console.log(`✅ access_token 설정 완료. 프론트로 리디렉션: ${feUrl}`);
-
-      return res.redirect(`${feUrl}`);
     } catch (error) {
       console.error(`❗ OAuth 콜백 처리 중 에러`, error);
-      return res.status(400).send('OAuth 인증에 실패했습니다.');
+      return res.status(400).json({
+        message: 'OAuth 인증에 실패했습니다.',
+      });
     }
   }
 }
