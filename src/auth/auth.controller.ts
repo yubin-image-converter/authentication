@@ -70,11 +70,11 @@ export class AuthController {
       }
 
       const data = await this.authService.handleOAuthCallback(provider, code, queryState);
+      const feUrl = this.configService.get<string>('FE_SERVER_URL')?.replace(/\/$/, '');
 
-      // accessToken을 JSON으로 응답
-      return res.json({
-        accessToken: data.accessToken,
-      });
+      console.log(`✅ access_token 발급 완료, 프론트로 리디렉션`);
+
+      return res.redirect(`${feUrl}/oauth-callback?accessToken=${data.accessToken}`);
     } catch (error) {
       console.error(`❗ OAuth 콜백 처리 중 에러`, error);
       return res.status(400).send('OAuth 인증에 실패했습니다.');
