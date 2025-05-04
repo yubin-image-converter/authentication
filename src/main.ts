@@ -11,6 +11,7 @@ async function bootstrap() {
       'http://localhost:3000',
       'http://localhost:5173',
       'https://authentication.image-converter.yubinshin.com',
+      'https://api.image-converter.yubinshin.com',
       'https://image-converter.yubinshin.com',
     ],
     credentials: true,
