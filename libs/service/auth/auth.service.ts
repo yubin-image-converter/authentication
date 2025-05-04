@@ -39,6 +39,8 @@ export class AuthService {
     const redirectUri = this.configService.get<string>('GOOGLE_REDIRECT_URI')!;
     const scope = 'email profile';
 
+    console.log(`🔁 redirect_uri 확인: ${redirectUri}`);
+
     return [
       'https://accounts.google.com/o/oauth2/v2/auth?',
       `response_type=code`,
