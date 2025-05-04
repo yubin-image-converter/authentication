@@ -31,9 +31,9 @@ export class AuthController {
     const url = this.authService.getOAuthRedirectUrl(provider, state);
 
     console.log(`🟡 OAuth 로그인 시작`);
-    // console.log(`  ↪️ provider: ${provider}`);
-    // console.log(`  ↪️ state (set to cookie): ${state}`);
-    // console.log(`  ↪️ redirecting to: ${url}`);
+    console.log(`  ↪️ provider: ${provider}`);
+    console.log(`  ↪️ state (set to cookie): ${state}`);
+    console.log(`  ↪️ redirecting to: ${url}`);
 
     return res.redirect(url);
   }
