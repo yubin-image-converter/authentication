@@ -72,7 +72,9 @@ export class AuthController {
       const data = await this.authService.handleOAuthCallback(provider, code, queryState);
       const feUrl = this.configService.get<string>('FE_SERVER_URL')?.replace(/\/$/, '');
 
-      console.log(`✅ access_token 발급 완료, 프론트로 리디렉션`);
+      console.log(
+        `✅ access_token 발급 완료, 프론트로 리디렉션 ${feUrl}/oauth-callback?accessToken=${data.accessToken}`,
+      );
 
       return res.redirect(`${feUrl}/oauth-callback?accessToken=${data.accessToken}`);
     } catch (error) {
