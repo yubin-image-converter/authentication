@@ -81,9 +81,9 @@ export class AuthController {
         maxAge: 1000 * 60 * 60 * 24 * 7,
       });
 
-      console.log(`✅ access_token 설정 완료. 프론트로 리디렉션: ${feUrl}/oauth/callback`);
+      console.log(`✅ access_token 설정 완료. 프론트로 리디렉션: ${feUrl}`);
 
-      return res.redirect(`${feUrl}/oauth/callback`);
+      return res.redirect(`${feUrl}`);
     } catch (error) {
       console.error(`❗ OAuth 콜백 처리 중 에러`, error);
       return res.status(400).send('OAuth 인증에 실패했습니다.');

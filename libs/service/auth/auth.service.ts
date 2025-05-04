@@ -31,24 +31,29 @@ export class AuthService {
    * @returns OAuth 동의 화면으로 리다이렉트할 URL 문자열.
    */
   public getOAuthRedirectUrl(provider: OAuthProvider, state: string): string {
-    if (provider !== 'google') {
-      throw new BadRequestException('지원하지 않는 제공자입니다.');
+    try {
+      if (provider !== 'google') {
+        throw new BadRequestException('지원하지 않는 제공자입니다.');
+      }
+
+      const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID')!;
+      const redirectUri = this.configService.get<string>('GOOGLE_REDIRECT_URI')!;
+      const scope = 'email profile';
+
+      console.log(`🔁 redirect_uri 확인: ${redirectUri}`);
+
+      return [
+        'https://accounts.google.com/o/oauth2/v2/auth?',
+        `response_type=code`,
+        `&client_id=${clientId}`,
+        `&redirect_uri=${encodeURIComponent(redirectUri)}`,
+        `&scope=${encodeURIComponent(scope)}`,
+        `&state=${encodeURIComponent(state)}`,
+      ].join('');
+    } catch (error) {
+      console.error(error);
+      throw error;
     }
-
-    const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID')!;
-    const redirectUri = this.configService.get<string>('GOOGLE_REDIRECT_URI')!;
-    const scope = 'email profile';
-
-    console.log(`🔁 redirect_uri 확인: ${redirectUri}`);
-
-    return [
-      'https://accounts.google.com/o/oauth2/v2/auth?',
-      `response_type=code`,
-      `&client_id=${clientId}`,
-      `&redirect_uri=${encodeURIComponent(redirectUri)}`,
-      `&scope=${encodeURIComponent(scope)}`,
-      `&state=${encodeURIComponent(state)}`,
-    ].join('');
   }
 
   /**
