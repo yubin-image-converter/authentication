@@ -71,20 +71,10 @@ export class AuthController {
 
       const data = await this.authService.handleOAuthCallback(provider, code, queryState);
 
-      const feUrl = this.configService.get<string>('FE_SERVER_URL')?.replace(/\/$/, '');
-
-      res.cookie('access_token', data.accessToken, {
-        httpOnly: true, // JS에서 직접 읽을 수 없도록
-        secure: true, // HTTPS에서만 전달
-        domain: '.image-converter.yubinshin.com', // ← 핵심: 서브도메인 전체에 적용
-        path: '/',
-        sameSite: 'none', // cross‐site 요청에도 전송
-        maxAge: 1000 * 60 * 60 * 24 * 7, // 7일
+      // accessToken을 JSON으로 응답
+      return res.json({
+        accessToken: data.accessToken,
       });
-
-      console.log(`✅ access_token 설정 완료. 프론트로 리디렉션: ${feUrl}`);
-
-      return res.redirect(`${feUrl}`);
     } catch (error) {
       console.error(`❗ OAuth 콜백 처리 중 에러`, error);
       return res.status(400).send('OAuth 인증에 실패했습니다.');
