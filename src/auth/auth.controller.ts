@@ -57,8 +57,16 @@ export class AuthController {
 
       const feUrl = this.configService.get<string>('FE_SERVER_URL')?.replace(/\/$/, '');
 
+      console.log('[AuthController] oauthCallback: ', {
+        code: query.code,
+        state: query.state,
+        scope: query?.scope,
+        authuser: query?.authuser,
+        prompt: query?.prompt,
+      });
+
       console.log(
-        `access_token 발급 완료, 프론트로 리디렉션 ${feUrl}/?accessToken=${data.accessToken}`,
+        `[AuthController] oauthCallback: access_token 발급 완료, 프론트로 리디렉션 ${feUrl}/?accessToken=${data.accessToken}`,
       );
       return res.redirect(`${feUrl}/?accessToken=${data.accessToken}`);
     } catch (error) {
