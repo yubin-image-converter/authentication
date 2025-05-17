@@ -2,8 +2,7 @@ import { AuthService } from '@libs/service/auth/auth.service';
 import { OAuthProvider } from '@libs/service/auth/const/oauth-provider.const';
 import { BadRequestException, Controller, Get, Query, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ApiTags } from '@nestjs/swagger';
-import * as crypto from 'crypto';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 
 import { OAuthCallbackDto } from './dto/oauth.callback.dto';
@@ -16,70 +15,70 @@ export class AuthController {
     private readonly configService: ConfigService,
   ) {}
 
-  /** 1) 로그인 진입점: 서버에서 구글로 리다이렉트 */
-  @Get('signin') oauthSignIn(@Query('provider') provider: OAuthProvider, @Res() res: Response) {
+  @Get('signin')
+  @ApiOperation({
+    summary: 'Google OAuth2 로그인 리다이렉트',
+    description: 'OAuth2 provider로 사용자를 리다이렉트합니다.',
+  })
+  @ApiQuery({ name: 'provider', enum: ['google'], required: true })
+  @ApiResponse({ status: 302, description: 'OAuth2 provider로 리다이렉션됨' })
+  oauthSignIn(@Query('provider') provider: OAuthProvider, @Res() res: Response) {
     try {
       if (!provider) throw new BadRequestException('provider가 필요합니다.');
 
-      console.log(`🟡 OAuth 로그인 시작`);
-      console.log(`  ↪️ provider: ${provider}`);
-      const rawState = {
-        provider,
-        nonce: crypto.randomUUID(),
-      };
-      const state = Buffer.from(JSON.stringify(rawState)).toString('base64');
-      console.log(`  ↪️ state (set to cookie): ${state}`);
-      res.cookie('oauth_state', state, { httpOnly: true, sameSite: 'lax' });
+      const state = this.authService.generateOAuthState(provider);
+      this.authService.setOAuthStateCookie(res, state);
 
       const url = this.authService.getOAuthRedirectUrl(provider, state);
-      console.log(`  ↪️ redirecting to: ${url}`);
 
       return res.redirect(url);
     } catch (error) {
-      console.error(error);
+      console.error(`[AuthController] oauthSignIn: `, error);
     }
   }
 
-  /** 2) OAuth 콜백 처리 */
   @Get('callback')
+  @ApiOperation({
+    summary: 'Google OAuth2 콜백 처리',
+    description:
+      'provider로부터 받은 응답을 API 서버로 전달하고, API 서버가 반환한 JWT를 클라이언트에게 전달합니다.',
+  })
+  @ApiResponse({ status: 200, description: '로그인 성공 및 쿠키 발급됨' })
   async oauthCallback(@Query() query: OAuthCallbackDto, @Req() req: Request, @Res() res: Response) {
     try {
       const { code, state: queryState } = query;
+
       const cookieState = (req.cookies as Record<string, string>)['oauth_state'];
 
-      console.log(`🔐 OAuth 콜백 도착`);
-      console.log(`  ↪️ code: ${code}`);
-      console.log(`  ↪️ queryState: ${queryState}`);
-      console.log(`  ↪️ cookieState: ${cookieState}`);
-
-      if (!queryState || queryState !== cookieState) {
-        console.error(`❌ state mismatch! 요청 거부됨`);
-        throw new BadRequestException('state 불일치');
-      }
-
-      let provider: OAuthProvider;
-      try {
-        const decoded = JSON.parse(Buffer.from(queryState, 'base64').toString()) as {
-          provider: OAuthProvider;
-        };
-        provider = decoded.provider;
-        console.log(`✅ provider 복원됨: ${provider}`);
-      } catch (error) {
-        console.error(`❌ 잘못된 state 형식`, error);
-        throw new BadRequestException('잘못된 state 형식');
-      }
+      this.authService.verifyOAuthStateMatch(queryState, cookieState);
+      const { provider } = this.authService.decodeOAuthState(queryState);
 
       const data = await this.authService.handleOAuthCallback(provider, code, queryState);
+
       const feUrl = this.configService.get<string>('FE_SERVER_URL')?.replace(/\/$/, '');
 
       console.log(
-        `✅ access_token 발급 완료, 프론트로 리디렉션 ${feUrl}/?accessToken=${data.accessToken}`,
+        `access_token 발급 완료, 프론트로 리디렉션 ${feUrl}/?accessToken=${data.accessToken}`,
       );
-
       return res.redirect(`${feUrl}/?accessToken=${data.accessToken}`);
     } catch (error) {
-      console.error(`❗ OAuth 콜백 처리 중 에러`, error);
-      return res.status(400).send('OAuth 인증에 실패했습니다.');
+      console.error(`[AuthController] oauthCallback: `, error);
+      return res.status(400).send('Failed to complete OAuth authentication.');
     }
+  }
+
+  @Get('logout')
+  @ApiOperation({
+    summary: '로그아웃',
+    description: '쿠키에 저장된 accessToken을 제거하고 프론트엔드로 리다이렉트합니다.',
+  })
+  @ApiResponse({ status: 200, description: '로그아웃 완료 및 클라이언트로 리다이렉션됨' })
+  logout(@Res() res: Response) {
+    res.clearCookie('accessToken');
+
+    const feUrl = this.configService.get<string>('FE_SERVER_URL')?.replace(/\/$/, '');
+    console.log(`[AuthController] Logged out, redirecting to ${feUrl}`);
+
+    return res.redirect(`${feUrl}/`);
   }
 }

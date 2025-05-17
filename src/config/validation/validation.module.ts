@@ -7,7 +7,7 @@ import { APP_PIPE } from '@nestjs/core';
       provide: APP_PIPE,
       useValue: new ValidationPipe({
         whitelist: true,
-        forbidNonWhitelisted: false,
+        forbidNonWhitelisted: true,
         transform: true,
       }),
     },
