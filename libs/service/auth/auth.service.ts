@@ -5,6 +5,7 @@ import * as axios from 'axios';
 import { Response } from 'express';
 import { firstValueFrom } from 'rxjs';
 
+import { UlidService } from '../ulid/ulid.service';
 import { OAuthProvider } from './const/oauth-provider.const';
 import { GoogleTokenResponse } from './interface/google-token';
 import { GoogleUserInfo } from './interface/google-userinfo';
@@ -16,6 +17,7 @@ export class AuthService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
+    private readonly ulidService: UlidService,
   ) {}
 
   public decodeOAuthState(state: string): OAuthStatePayload {
@@ -31,7 +33,7 @@ export class AuthService {
   public generateOAuthState(provider: OAuthProvider): string {
     const rawState = {
       provider,
-      nonce: crypto.randomUUID(),
+      nonce: this.ulidService.generate('user'),
     };
     return Buffer.from(JSON.stringify(rawState)).toString('base64');
   }
