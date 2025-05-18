@@ -1,98 +1,96 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Authentication Server (NestJS)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS 기반의 인증 서버로, Google OAuth2 로그인을 처리하고 API 서버와 클라이언트 간의 안전한 통신을 위한 JWT 토큰을 전달합니다.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## 🔗 Links
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+* Swagger UI: [Swagger UI](https://authentication.image-converter.yubinshin.com/docs)
+* Architecture Overview: [Project README](https://github.com/yubin-image-converter/k8s)
 
-## Project setup
+---
+
+## 📁 Directory Structure
 
 ```bash
-$ npm install
+.
+├── src
+│   ├── auth                # OAuth2 컨트롤러 및 DTO
+│   ├── config
+│   │   ├── security        # Helmet 및 보안 설정
+│   │   └── validation      # Joi 기반 환경변수 스키마
+│   └── main.ts             # 애플리케이션 부트스트랩
+├── libs/service            # 재사용 가능한 비즈니스 로직 모듈
+│   ├── auth                # Google 인증 서비스, 상수, 인터페이스
+│   └── ulid                # ULID 생성기 모듈
+├── client/public           # 리디렉션 처리를 위한 정적 자산
+├── Dockerfile              # 컨테이너 설정
+├── test                    # E2E 테스트 설정 (구현 예정)
 ```
 
-## Compile and run the project
+---
 
-```bash
-# development
-$ npm run start
+## ⚙️ Tech Stack
 
-# watch mode
-$ npm run start:dev
+- **프레임워크**: NestJS
+- **인증 방식**: Google OAuth2
+- **토큰 처리**: JWT (access token 클라이언트 전달)
+- **환경 설정 검증**: Joi 스키마 기반
+- **보안 모듈**: Helmet 적용
+- **고유 ID 생성**: 커스텀 ULID 서비스 모듈
 
-# production mode
-$ npm run start:prod
-```
+---
 
-## Run tests
+## Features
 
-```bash
-# unit tests
-$ npm run test
+- Google OAuth2 로그인 엔드포인트
+  - `/auth/signin?provider=google`
+- 콜백 처리 및 사용자 정보 수신
+   - `/auth/callback/google`
+- API 서버에서 발급한 JWT accessToken을 클라이언트에 전달
+- 토큰 기반 리디렉션으로 클라이언트 인증 상태 통합
 
-# e2e tests
-$ npm run test:e2e
+---
 
-# test coverage
-$ npm run test:cov
-```
+## Testing
 
-## Deployment
+* Jest + Supertest 기반 테스트 환경 구성 예정
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+---
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Deployment & Operations
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+* GitHub Actions + Docker 기반 CI 파이프라인 구성
+* Docker Hub 이미지 빌드 및 푸시
+* Argo CD 기반 GKE GitOps 배포
+* Sealed Secrets를 통한 Kubernetes 보안 구성
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+---
 
-## Resources
+## Design Highlights
 
-Check out a few resources that may come in handy when working with NestJS:
+- 인증 전용 서버로 API 서버와 명확히 분리된 구조
+- NestJS 모듈 시스템에 최적화된 OAuth2 플로우 구성
+- OAuth 및 JWT 인증으로 프론트엔드 인증 상태 간소화
+- `libs/service`로 인증 및 유틸 서비스의 재사용성 극대화
+- Helmet 적용을 통한 보안 헤더 관리 독립화
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+---
 
-## Support
+## Why use `libs/service`?
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+이 디렉토리는 인증, ULID 생성 등 재사용 가능한 서비스 로직을 애플리케이션 레이어와 분리하여 제공합니다. 동일 모노레포 내 여러 NestJS 애플리케이션에서 임포트하여 사용할 수 있도록 설계되어 있어, 코드 재사용성과 도메인-프레임워크 분리를 통한 유지보수성 및 확장성을 확보할 수 있습니다.
 
-## Stay in touch
+---
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## Author
+
+**Yubin Shin**
+OAuth 인증 흐름 구현, 보안 아키텍처 설계, JWT 기반 로그인 처리 담당
+
+---
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+MIT © Yubin Shin
