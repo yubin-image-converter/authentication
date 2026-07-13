@@ -4,14 +4,14 @@ NestJS 기반의 인증 서버로, Google OAuth2 로그인을 처리하고 API �
 
 ---
 
-## 🔗 Links
+## Links
 
 * Swagger UI: [Swagger UI](https://authentication.image-converter.yubinshin.com/docs)
 * Architecture Overview: [Project README](https://github.com/yubin-image-converter/k8s)
 
 ---
 
-## 📁 Directory Structure
+## Directory Structure
 
 ```bash
 .
@@ -31,7 +31,7 @@ NestJS 기반의 인증 서버로, Google OAuth2 로그인을 처리하고 API �
 
 ---
 
-## ⚙️ Tech Stack
+## Tech Stack
 
 - **프레임워크**: NestJS
 - **인증 방식**: Google OAuth2
