@@ -26,4 +26,9 @@ export class OAuthCallbackDto {
   @IsOptional()
   @IsString()
   prompt?: string;
+
+  @ApiPropertyOptional({ required: false, description: 'Optional iss (issuer) parameter from Google' })
+  @IsOptional()
+  @IsString()
+  iss?: string;
 }
